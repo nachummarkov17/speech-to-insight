@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Recordings</title>
+    <script>
+      async function uploadFiles() {
+        const formData = new FormData();
+        const files = document.getElementById("audioFiles").files;
+        for (let i = 0; i < files.length; i++) {
+          formData.append("audioFiles", files[i]);
+        }
+
+        const response = await fetch("/upload_audio", {
+          method: "POST",
+          body: formData,
+        });
+        const result = await response.json();
+        document.getElementById("result").innerText = JSON.stringify(
+          result,
+          null,
+          2
+        );
+        document.getElementById("uploadForm").reset();
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Add Recordings</h1>
+    <nav>
+      <a href="/">Back to Home</a>
+    </nav>
+
+    <h2>Upload Audio Files</h2>
+    <form id="uploadForm" onsubmit="event.preventDefault(); uploadFiles();">
+      <label for="audioFiles">Select Audio Files:</label>
+      <input type="file" id="audioFiles" name="audioFiles" multiple required /><br />
+      <button type="submit">Upload Files</button>
+    </form>
+
+    <h2>Result</h2>
+    <pre id="result"></pre>
+  </body>
+</html>
