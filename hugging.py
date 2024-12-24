@@ -1,4 +1,3 @@
-import os
 import google.generativeai as genai
 
 # Configure the API key (ensure the GEMINI_API_KEY environment variable is set)
@@ -29,7 +28,8 @@ def summarize_text(input_text):
                 {
                     "role": "user",
                     "parts": [
-                        f"You are a professional summarizer. Please summarize the following text concisely and accurately:\n\n{input_text}"]
+                        f"You are a professional summarizer. Please summarize the following text concisely and accurately:\n\n{input_text}"
+                    ],
                 }
             ]
         )
