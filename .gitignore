@@ -1,0 +1,5 @@
+# Ignore the uploads folder
+uploads/
+
+# Ignore Python cache files
+__pycache__/

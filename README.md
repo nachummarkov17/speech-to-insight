@@ -31,6 +31,30 @@ This project is a basic Flask application that uses MongoDB to store summaries. 
 
 You can use Postman to test the API endpoints.
 
+## Pages
+
+### Add Recordings
+
+### Check AI Summary
+
+### Tools
+
+1. Create summary (/api/summaries)
+
+2. Get all summaries (/api/summaries)
+
+3. Delete summary by ID (/api/summaries)
+
+4. Search summaries by date (/api/summaries/date_filter)
+   ?date=YYYY-MM-DD (summaries equaling the date)
+   ?date=YYYY-MM-DD&type=before (summaries before date)
+   ?date=YYYY-MM-DD&type=after (summaries after date)
+
+5. Serach summaries by key terms (case-insensitive) (api/summaries/key_term_search)
+   ?key_terms=...&key_terms=...
+
+### Worktable
+
 ## License
 
 This project is licensed under the MIT License.
