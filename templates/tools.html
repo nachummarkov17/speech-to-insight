@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tools</title>
+    <script>
+      async function createSummary() {
+        const title = document.getElementById("title").value;
+        const content = document.getElementById("content").value;
+        const date = document.getElementById("date").value;
+        const length = document.getElementById("length").value;
+        const key_terms = document.getElementById("key_terms").value.split(",");
+
+        const response = await fetch("/api/summaries", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title, content, date, length, key_terms }),
+        });
+        const result = await response.json();
+        document.getElementById("result").innerText = JSON.stringify(
+          result,
+          null,
+          2
+        );
+        document.getElementById("createSummaryForm").reset();
+      }
+
+      async function getSummaries() {
+        const response = await fetch("/api/summaries");
+        const result = await response.json();
+        document.getElementById("result").innerText = JSON.stringify(
+          result,
+          null,
+          2
+        );
+      }
+
+      async function deleteSummary() {
+        const id = document.getElementById("deleteId").value;
+        const response = await fetch(`/api/summaries/${id}`, {
+          method: "DELETE",
+        });
+        if (response.status === 204) {
+          document.getElementById("result").innerText =
+            "Summary deleted successfully";
+        } else {
+          const result = await response.json();
+          document.getElementById("result").innerText = JSON.stringify(
+            result,
+            null,
+            2
+          );
+        }
+        document.getElementById("deleteSummaryForm").reset();
+      }
+
+      async function searchByDate() {
+        const date = document.getElementById("searchDate").value;
+        const type = document.getElementById("searchType").value;
+        const response = await fetch(
+          `/api/summaries/date_search?date=${date}&type=${type}`
+        );
+        const result = await response.json();
+        document.getElementById("result").innerText = JSON.stringify(
+          result,
+          null,
+          2
+        );
+        document.getElementById("searchByDateForm").reset();
+      }
+
+      async function searchBykey_terms() {
+        const key_terms = document
+          .getElementById("searchkey_terms")
+          .value.split(",");
+        const query = key_terms
+          .map((term) => `key_terms=${encodeURIComponent(term.trim())}`)
+          .join("&");
+        const response = await fetch(`/api/summaries/key_term_search?${query}`);
+        const result = await response.json();
+        document.getElementById("result").innerText = JSON.stringify(
+          result,
+          null,
+          2
+        );
+        document.getElementById("searchByKeyTermsForm").reset();
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Tools</h1>
+    <nav>
+      <a href="/">Back to Home</a>
+    </nav>
+
+    <h2>Create Summary</h2>
+    <form
+      id="createSummaryForm"
+      onsubmit="event.preventDefault(); createSummary();"
+    >
+      <label for="title">Title:</label>
+      <input type="text" id="title" required /><br />
+      <label for="content">Content:</label>
+      <textarea id="content" required></textarea><br />
+      <label for="date">Date (YYYY-MM-DD):</label>
+      <input type="date" id="date" required /><br />
+      <label for="length">Length:</label>
+      <input type="number" id="length" required /><br />
+      <label for="key_terms">Key Terms (comma-separated):</label>
+      <input type="text" id="key_terms" required /><br />
+      <button type="submit">Create Summary</button>
+    </form>
+
+    <h2>Get All Summaries</h2>
+    <button onclick="getSummaries()">Get Summaries</button>
+
+    <h2>Delete Summary</h2>
+    <form
+      id="deleteSummaryForm"
+      onsubmit="event.preventDefault(); deleteSummary();"
+    >
+      <label for="deleteId">Summary ID:</label>
+      <input type="text" id="deleteId" required /><br />
+      <button type="submit">Delete Summary</button>
+    </form>
+
+    <h2>Search Summaries by Date</h2>
+    <form
+      id="searchByDateForm"
+      onsubmit="event.preventDefault(); searchByDate();"
+    >
+      <label for="searchDate">Date (YYYY-MM-DD):</label>
+      <input type="date" id="searchDate" required /><br />
+      <label for="searchType">Type:</label>
+      <select id="searchType">
+        <option value="equal">Equal</option>
+        <option value="before">Before</option>
+        <option value="after">After</option></select
+      ><br />
+      <button type="submit">Search by Date</button>
+    </form>
+
+    <h2>Search Summaries by Key Terms</h2>
+    <form
+      id="searchByKeyTermsForm"
+      onsubmit="event.preventDefault(); searchBykey_terms();"
+    >
+      <label for="searchkey_terms">Key Terms (comma-separated):</label>
+      <input type="text" id="searchkey_terms" required /><br />
+      <button type="submit">Search by Key Terms</button>
+    </form>
+
+    <h2>Result</h2>
+    <pre id="result"></pre>
+  </body>
+</html>
