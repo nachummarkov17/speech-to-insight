@@ -4,15 +4,12 @@ import google.generativeai as genai
 # Configure the API key (ensure the GEMINI_API_KEY environment variable is set)
 genai.configure(api_key="AIzaSyDCPNjtKnxK3L406ijfxkHLV7lncw8rLiY")
 
-
-
-
 # Define the generation configuration
 generation_config = {
     "temperature": 0.5,  # Lower temperature for focused, deterministic summaries
     "top_p": 0.9,
     "top_k": 40,
-    "max_output_tokens": 200,  # Limit output tokens for concise summaries
+    # "max_output_tokens": 200,  # Limit output tokens for concise summaries
     "response_mime_type": "text/plain",
 }
 
@@ -22,6 +19,7 @@ model = genai.GenerativeModel(
     generation_config=generation_config,
 )
 
+
 def summarize_text(input_text):
     """Summarize the provided text using Google Gemini AI."""
     try:
@@ -30,7 +28,8 @@ def summarize_text(input_text):
             history=[
                 {
                     "role": "user",
-                    "parts": [f"You are a professional summarizer. Please summarize the following text concisely and accurately:\n\n{input_text}"]
+                    "parts": [
+                        f"You are a professional summarizer. Please summarize the following text concisely and accurately:\n\n{input_text}"]
                 }
             ]
         )
@@ -39,6 +38,7 @@ def summarize_text(input_text):
         return response.text.strip()
     except Exception as e:
         return f"An error occurred: {e}"
+
 
 # Example usage
 if __name__ == "__main__":
