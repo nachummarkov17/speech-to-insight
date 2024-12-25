@@ -9,44 +9,16 @@
       rel="stylesheet"
     />
     <script>
-      async function createSummary() {
-        const title = document.getElementById("title").value;
-        const content = document.getElementById("content").value;
-        const date = document.getElementById("date").value;
-        const length = document.getElementById("length").value;
-        const key_terms = document.getElementById("key_terms").value.split(",");
-
-        const response = await fetch("/api/summaries", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ title, content, date, length, key_terms }),
-        });
-        const result = await response.json();
-        document.getElementById("result").innerText = JSON.stringify(
-          result,
-          null,
-          2
-        );
-        document.getElementById("createSummaryForm").reset();
-      }
-
       async function deleteSummary() {
         const id = document.getElementById("deleteId").value;
         const response = await fetch(`/api/summaries/${id}`, {
           method: "DELETE",
         });
         if (response.status === 204) {
-          document.getElementById("result").innerText =
-            "Summary deleted successfully";
+          alert("Summary deleted successfully");
         } else {
           const result = await response.json();
-          document.getElementById("result").innerText = JSON.stringify(
-            result,
-            null,
-            2
-          );
+          alert(JSON.stringify(result, null, 2));
         }
         document.getElementById("deleteSummaryForm").reset();
       }
@@ -56,11 +28,7 @@
           method: "DELETE",
         });
         const result = await response.json();
-        document.getElementById("result").innerText = JSON.stringify(
-          result,
-          null,
-          2
-        );
+        alert(JSON.stringify(result, null, 2));
       }
 
       async function searchSummaries() {
@@ -102,16 +70,13 @@
           `/api/summaries/search?${query.toString()}`
         );
         const result = await response.json();
-        document.getElementById("result").innerText = JSON.stringify(
-          result,
-          null,
-          2
-        );
 
         const summariesList = document.getElementById("summariesList");
         summariesList.innerHTML = "";
         result.forEach((summary) => {
           const listItem = document.createElement("li");
+          listItem.className =
+            "list-group-item d-flex justify-content-between align-items-center";
           listItem.textContent = `${summary.title} (${summary.date})`;
           const addButton = document.createElement("button");
           addButton.textContent = "Add to Case";
@@ -172,35 +137,6 @@
       <nav class="mt-3">
         <a class="btn btn-secondary" href="/">Back to Home</a>
       </nav>
-
-      <h2 class="mt-4">Create Summary</h2>
-      <form
-        id="createSummaryForm"
-        onsubmit="event.preventDefault(); createSummary();"
-        class="mt-3"
-      >
-        <div class="form-group">
-          <label for="title">Title:</label>
-          <input type="text" id="title" required class="form-control" />
-        </div>
-        <div class="form-group">
-          <label for="content">Content:</label>
-          <textarea id="content" required class="form-control"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="date">Date (YYYY-MM-DD):</label>
-          <input type="date" id="date" required class="form-control" />
-        </div>
-        <div class="form-group">
-          <label for="length">Length:</label>
-          <input type="number" id="length" required class="form-control" />
-        </div>
-        <div class="form-group">
-          <label for="key_terms">Key Terms (comma-separated):</label>
-          <input type="text" id="key_terms" required class="form-control" />
-        </div>
-        <button type="submit" class="btn btn-primary">Create Summary</button>
-      </form>
 
       <h2 class="mt-4">Delete Summary</h2>
       <form
@@ -271,13 +207,16 @@
           <label for="searchThreatLevel">Threat Level:</label>
           <input type="text" id="searchThreatLevel" class="form-control" />
         </div>
-        <div class="form-group">
-          <label for="searchResolved">Resolved:</label>
-          <input type="checkbox" id="searchResolved" class="form-check-input" />
+        <div class="form-group form-check">
+          <input type="checkbox" class="form-check-input" id="searchResolved" />
+          <label class="form-check-label" for="searchResolved">Resolved</label>
         </div>
-        <div class="form-group">
-          <label for="clearFields">Clear fields after search:</label>
-          <input type="checkbox" id="clearFields" class="form-check-input" />
+
+        <div class="form-group form-check">
+          <input type="checkbox" class="form-check-input" id="clearFields" />
+          <label class="form-check-label" for="clearFields"
+            >Clear fields after search</label
+          >
         </div>
         <button type="submit" class="btn btn-primary">Search Summaries</button>
       </form>
@@ -293,9 +232,6 @@
 
       <h2 class="mt-4">Summaries</h2>
       <ul id="summariesList" class="list-group mt-3"></ul>
-
-      <h2 class="mt-4">Result</h2>
-      <pre id="result" class="mt-3"></pre>
     </div>
   </body>
 </html>

@@ -157,21 +157,6 @@ def progress_stream():
     return Response(generate(), mimetype="text/event-stream")
 
 
-@app.route("/api/summaries", methods=["POST"])
-def create_summary():
-    data = request.json
-    if "date" in data:
-        try:
-            data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
-        except ValueError:
-            return jsonify({"message": "Invalid date format. Use YYYY-MM-DD."}), 400
-    summary_id = mongo.db.summaries.insert_one(data).inserted_id
-    summary = mongo.db.summaries.find_one({"_id": ObjectId(summary_id)})
-    summary["_id"] = str(summary["_id"])
-    summary["date"] = summary["date"].strftime("%Y-%m-%d")
-    return jsonify(summary), 201
-
-
 @app.route("/api/summaries/<id>", methods=["DELETE"])
 def delete_summary(id):
     result = mongo.db.summaries.delete_one({"_id": ObjectId(id)})
