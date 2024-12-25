@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tools</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <script>
       async function createSummary() {
         const title = document.getElementById("title").value;
@@ -28,16 +32,6 @@
         document.getElementById("createSummaryForm").reset();
       }
 
-      async function getSummaries() {
-        const response = await fetch("/api/summaries");
-        const result = await response.json();
-        document.getElementById("result").innerText = JSON.stringify(
-          result,
-          null,
-          2
-        );
-      }
-
       async function deleteSummary() {
         const id = document.getElementById("deleteId").value;
         const response = await fetch(`/api/summaries/${id}`, {
@@ -57,103 +51,251 @@
         document.getElementById("deleteSummaryForm").reset();
       }
 
-      async function searchByDate() {
-        const date = document.getElementById("searchDate").value;
-        const type = document.getElementById("searchType").value;
-        const response = await fetch(
-          `/api/summaries/date_search?date=${date}&type=${type}`
-        );
+      async function deleteAllSummaries() {
+        const response = await fetch(`/api/summaries`, {
+          method: "DELETE",
+        });
         const result = await response.json();
         document.getElementById("result").innerText = JSON.stringify(
           result,
           null,
           2
         );
-        document.getElementById("searchByDateForm").reset();
       }
 
-      async function searchBykey_terms() {
+      async function searchSummaries() {
+        const title = document.getElementById("searchTitle").value;
+        const content = document.getElementById("searchContent").value;
+        const date = document.getElementById("searchDate").value;
+        const dateType = document.getElementById("searchDateType").value;
         const key_terms = document
-          .getElementById("searchkey_terms")
+          .getElementById("searchKeyTerms")
           .value.split(",");
-        const query = key_terms
-          .map((term) => `key_terms=${encodeURIComponent(term.trim())}`)
-          .join("&");
-        const response = await fetch(`/api/summaries/key_term_search?${query}`);
+        const location = document.getElementById("searchLocation").value;
+        const content_length = document.getElementById(
+          "searchContentLength"
+        ).value;
+        const summary_length = document.getElementById(
+          "searchSummaryLength"
+        ).value;
+        const threat_level = document.getElementById("searchThreatLevel").value;
+        const resolved = document.getElementById("searchResolved").checked;
+        const clearFields = document.getElementById("clearFields").checked;
+
+        const query = new URLSearchParams();
+        if (title) query.append("title", title);
+        if (content) query.append("content", content);
+        if (date) {
+          query.append("date", date);
+          query.append("dateType", dateType);
+        }
+        if (key_terms.length > 0 && key_terms[0] !== "") {
+          key_terms.forEach((term) => query.append("key_terms", term.trim()));
+        }
+        if (location) query.append("location", location);
+        if (content_length) query.append("content_length", content_length);
+        if (summary_length) query.append("summary_length", summary_length);
+        if (threat_level) query.append("threat_level", threat_level);
+        query.append("resolved", resolved);
+
+        const response = await fetch(
+          `/api/summaries/search?${query.toString()}`
+        );
         const result = await response.json();
         document.getElementById("result").innerText = JSON.stringify(
           result,
           null,
           2
         );
-        document.getElementById("searchByKeyTermsForm").reset();
+
+        const summariesList = document.getElementById("summariesList");
+        summariesList.innerHTML = "";
+        result.forEach((summary) => {
+          const listItem = document.createElement("li");
+          listItem.textContent = `${summary.title} (${summary.date})`;
+          const addButton = document.createElement("button");
+          addButton.textContent = "Add to Case";
+          addButton.className = "btn btn-sm btn-primary ml-2";
+          addButton.onclick = () => addToCase(summary._id);
+          listItem.appendChild(addButton);
+          summariesList.appendChild(listItem);
+        });
+
+        if (clearFields) {
+          document.getElementById("searchSummariesForm").reset();
+        }
+      }
+
+      async function addToCase(summaryId) {
+        const caseNumber = document.getElementById("caseNumber").value;
+        if (!caseNumber) {
+          alert("Please enter a case number.");
+          return;
+        }
+
+        const response = await fetch(
+          `/api/summaries/${summaryId}/case_number`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ case_number: caseNumber }),
+          }
+        );
+        const result = await response.json();
+        alert(result.message);
+      }
+
+      async function addAllToCase() {
+        const caseNumber = document.getElementById("caseNumber").value;
+        if (!caseNumber) {
+          alert("Please enter a case number.");
+          return;
+        }
+
+        const response = await fetch(`/api/summaries/case_number`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ case_number: caseNumber }),
+        });
+        const result = await response.json();
+        alert(result.message);
       }
     </script>
   </head>
   <body>
-    <h1>Tools</h1>
-    <nav>
-      <a href="/">Back to Home</a>
-    </nav>
+    <div class="container">
+      <h1 class="mt-5">Tools</h1>
+      <nav class="mt-3">
+        <a class="btn btn-secondary" href="/">Back to Home</a>
+      </nav>
 
-    <h2>Create Summary</h2>
-    <form
-      id="createSummaryForm"
-      onsubmit="event.preventDefault(); createSummary();"
-    >
-      <label for="title">Title:</label>
-      <input type="text" id="title" required /><br />
-      <label for="content">Content:</label>
-      <textarea id="content" required></textarea><br />
-      <label for="date">Date (YYYY-MM-DD):</label>
-      <input type="date" id="date" required /><br />
-      <label for="length">Length:</label>
-      <input type="number" id="length" required /><br />
-      <label for="key_terms">Key Terms (comma-separated):</label>
-      <input type="text" id="key_terms" required /><br />
-      <button type="submit">Create Summary</button>
-    </form>
+      <h2 class="mt-4">Create Summary</h2>
+      <form
+        id="createSummaryForm"
+        onsubmit="event.preventDefault(); createSummary();"
+        class="mt-3"
+      >
+        <div class="form-group">
+          <label for="title">Title:</label>
+          <input type="text" id="title" required class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="content">Content:</label>
+          <textarea id="content" required class="form-control"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="date">Date (YYYY-MM-DD):</label>
+          <input type="date" id="date" required class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="length">Length:</label>
+          <input type="number" id="length" required class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="key_terms">Key Terms (comma-separated):</label>
+          <input type="text" id="key_terms" required class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary">Create Summary</button>
+      </form>
 
-    <h2>Get All Summaries</h2>
-    <button onclick="getSummaries()">Get Summaries</button>
+      <h2 class="mt-4">Delete Summary</h2>
+      <form
+        id="deleteSummaryForm"
+        onsubmit="event.preventDefault(); deleteSummary();"
+        class="mt-3"
+      >
+        <div class="form-group">
+          <label for="deleteId">Summary ID:</label>
+          <input type="text" id="deleteId" required class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-danger">Delete Summary</button>
+      </form>
 
-    <h2>Delete Summary</h2>
-    <form
-      id="deleteSummaryForm"
-      onsubmit="event.preventDefault(); deleteSummary();"
-    >
-      <label for="deleteId">Summary ID:</label>
-      <input type="text" id="deleteId" required /><br />
-      <button type="submit">Delete Summary</button>
-    </form>
+      <h2 class="mt-4">Delete All Summaries</h2>
+      <button class="btn btn-danger mt-3" onclick="deleteAllSummaries()">
+        Delete All Summaries
+      </button>
 
-    <h2>Search Summaries by Date</h2>
-    <form
-      id="searchByDateForm"
-      onsubmit="event.preventDefault(); searchByDate();"
-    >
-      <label for="searchDate">Date (YYYY-MM-DD):</label>
-      <input type="date" id="searchDate" required /><br />
-      <label for="searchType">Type:</label>
-      <select id="searchType">
-        <option value="equal">Equal</option>
-        <option value="before">Before</option>
-        <option value="after">After</option></select
-      ><br />
-      <button type="submit">Search by Date</button>
-    </form>
+      <h2 class="mt-4">Search Summaries</h2>
+      <form
+        id="searchSummariesForm"
+        onsubmit="event.preventDefault(); searchSummaries();"
+        class="mt-3"
+      >
+        <div class="form-group">
+          <label for="searchTitle">Title:</label>
+          <input type="text" id="searchTitle" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchContent">Content:</label>
+          <input type="text" id="searchContent" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchDate">Date (YYYY-MM-DD):</label>
+          <input type="date" id="searchDate" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchDateType">Date Type:</label>
+          <select id="searchDateType" class="form-control">
+            <option value="equal">Equal</option>
+            <option value="before">Before</option>
+            <option value="after">After</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="searchKeyTerms">Key Terms (comma-separated):</label>
+          <input type="text" id="searchKeyTerms" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchLocation">Location (latitude,longitude):</label>
+          <input
+            type="text"
+            id="searchLocation"
+            placeholder="e.g., 37.7749,-122.4194"
+            class="form-control"
+          />
+        </div>
+        <div class="form-group">
+          <label for="searchContentLength">Content Length:</label>
+          <input type="number" id="searchContentLength" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchSummaryLength">Summary Length:</label>
+          <input type="number" id="searchSummaryLength" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchThreatLevel">Threat Level:</label>
+          <input type="text" id="searchThreatLevel" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchResolved">Resolved:</label>
+          <input type="checkbox" id="searchResolved" class="form-check-input" />
+        </div>
+        <div class="form-group">
+          <label for="clearFields">Clear fields after search:</label>
+          <input type="checkbox" id="clearFields" class="form-check-input" />
+        </div>
+        <button type="submit" class="btn btn-primary">Search Summaries</button>
+      </form>
 
-    <h2>Search Summaries by Key Terms</h2>
-    <form
-      id="searchByKeyTermsForm"
-      onsubmit="event.preventDefault(); searchBykey_terms();"
-    >
-      <label for="searchkey_terms">Key Terms (comma-separated):</label>
-      <input type="text" id="searchkey_terms" required /><br />
-      <button type="submit">Search by Key Terms</button>
-    </form>
+      <h2 class="mt-4">Case Number</h2>
+      <div class="form-group">
+        <label for="caseNumber">Case Number:</label>
+        <input type="number" id="caseNumber" class="form-control" />
+      </div>
+      <button class="btn btn-primary mt-3" onclick="addAllToCase()">
+        Add All Summaries to Case
+      </button>
 
-    <h2>Result</h2>
-    <pre id="result"></pre>
+      <h2 class="mt-4">Summaries</h2>
+      <ul id="summariesList" class="list-group mt-3"></ul>
+
+      <h2 class="mt-4">Result</h2>
+      <pre id="result" class="mt-3"></pre>
+    </div>
   </body>
 </html>

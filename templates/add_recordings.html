@@ -4,42 +4,114 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Add Recordings</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <script>
       async function uploadFiles() {
         const formData = new FormData();
         const files = document.getElementById("audioFiles").files;
+        const location = document.getElementById("location").value;
+        const caseNumber =
+          document.getElementById("caseNumber").value || undefined;
+
         for (let i = 0; i < files.length; i++) {
           formData.append("audioFiles", files[i]);
         }
+        formData.append("location", location);
+        formData.append("case_number", caseNumber);
+
+        const progressBar = document.getElementById("progressBar");
+        const progressText = document.getElementById("progressText");
+        progressBar.max = files.length;
+        progressBar.value = 0;
+        progressText.innerText = `0 / ${files.length} completed`;
+
+        // Listen for progress updates
+        const eventSource = new EventSource("/progress");
+        eventSource.onmessage = function (event) {
+          const progress = event.data.split("/");
+          progressBar.value = progress[0];
+          progressText.innerText = `${progress[0]} / ${progress[1]} completed`;
+          if (progress[0] === progress[1]) {
+            eventSource.close();
+          }
+        };
 
         const response = await fetch("/upload_audio", {
           method: "POST",
           body: formData,
         });
+
         const result = await response.json();
         document.getElementById("result").innerText = JSON.stringify(
           result,
           null,
           2
         );
+
+        // Reset progress bar and text
+        progressBar.value = 0;
+        progressText.innerText = `0 / 0 completed`;
+
         document.getElementById("uploadForm").reset();
       }
     </script>
   </head>
   <body>
-    <h1>Add Recordings</h1>
-    <nav>
-      <a href="/">Back to Home</a>
-    </nav>
+    <div class="container">
+      <h1 class="mt-5">Add Recordings</h1>
+      <nav class="mt-3">
+        <a class="btn btn-secondary" href="/">Back to Home</a>
+      </nav>
 
-    <h2>Upload Audio Files</h2>
-    <form id="uploadForm" onsubmit="event.preventDefault(); uploadFiles();">
-      <label for="audioFiles">Select Audio Files:</label>
-      <input type="file" id="audioFiles" name="audioFiles" multiple required /><br />
-      <button type="submit">Upload Files</button>
-    </form>
+      <h2 class="mt-4">Upload Audio Files</h2>
+      <form
+        id="uploadForm"
+        onsubmit="event.preventDefault(); uploadFiles();"
+        class="mt-3"
+      >
+        <div class="form-group">
+          <label for="audioFiles">Select Audio Files:</label>
+          <input
+            type="file"
+            id="audioFiles"
+            name="audioFiles"
+            multiple
+            required
+            class="form-control"
+          />
+        </div>
+        <div class="form-group">
+          <label for="location">Location (latitude,longitude):</label>
+          <input
+            type="text"
+            id="location"
+            name="location"
+            required
+            placeholder="e.g., 37.7749,-122.4194"
+            class="form-control"
+          />
+        </div>
+        <div class="form-group">
+          <label for="caseNumber">Case Number (optional):</label>
+          <input
+            type="number"
+            id="caseNumber"
+            name="caseNumber"
+            class="form-control"
+          />
+        </div>
+        <button type="submit" class="btn btn-primary">Upload Files</button>
+      </form>
 
-    <h2>Result</h2>
-    <pre id="result"></pre>
+      <h2 class="mt-4">Progress</h2>
+      <progress id="progressBar" value="0" max="100" class="w-100"></progress>
+      <p id="progressText">0 / 0 completed</p>
+
+      <h2 class="mt-4">Result</h2>
+      <pre id="result"></pre>
+    </div>
   </body>
 </html>

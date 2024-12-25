@@ -1,7 +1,7 @@
 import google.generativeai as genai
 
 # Configure the API key (ensure the GEMINI_API_KEY environment variable is set)
-genai.configure(api_key="AIzaSyDCPNjtKnxK3L406ijfxkHLV7lncw8rLiY")
+genai.configure(api_key="AIzaSyCwsWhj8h8aVExmmhFSSbxmpSXRkIPnG1I")
 
 # Define the generation configuration
 generation_config = {
@@ -40,7 +40,7 @@ You are an advanced AI trained to analyze text and assess threat levels based on
    - *3 = Moderate threat:* Potential for risky behavior, minor crime, or veiled intent to cause harm (e.g., indirect threats or preparations without explicit details).
    - *4 = High threat:* Clear planning, intent, or discussion of harmful or illegal activities (e.g., detailed crime planning, direct threats, or dangerous intent).
    - *5 = Critical threat:* Immediate or explicit danger to individuals, groups, or public safety (e.g., active plans to harm someone imminently or evidence of extreme risk).
-5. *Keyword Summary:* Extract and list key terms or phrases that indicate potential risks or concerning elements in the text.
+5. *Keyword Summary:* Extract and list key terms or phrases, paying particular attention to any mentions of names, specific locations, times, and illegal or dangerous activities in the text. Present these key terms in a comma-separated list.
 *Output Format:*
 
 [{{Generated Title}}]  

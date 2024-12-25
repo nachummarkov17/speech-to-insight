@@ -4,12 +4,384 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Worktable</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      let currentSummaryId = null;
+
+      let map;
+
+      let mapInitialized = false;
+
+      async function fetchSummariesByCase() {
+        const caseNumber = document.getElementById("caseNumber").value;
+        if (!caseNumber) {
+          alert("Please enter a case number.");
+          return;
+        }
+
+        const response = await fetch(
+          `/api/summaries/search?case_number=${caseNumber}`
+        );
+        const summaries = await response.json();
+        const summariesList = document.getElementById("summariesList");
+        summariesList.innerHTML = "";
+
+        summaries.forEach((summary) => {
+          const listItem = document.createElement("li");
+          listItem.textContent = `${summary.title} (${summary.date})`;
+          const editButton = document.createElement("button");
+          editButton.textContent = "Edit";
+          editButton.onclick = () => editSummary(summary);
+          const viewButton = document.createElement("button");
+          viewButton.textContent = "View";
+          viewButton.onclick = () => viewSummary(summary);
+          listItem.appendChild(editButton);
+          listItem.appendChild(viewButton);
+          summariesList.appendChild(listItem);
+        });
+
+        // Refresh the map only if it is already open
+        const mapDiv = document.getElementById("map");
+        if (mapDiv.style.display === "block") {
+          showMap();
+        }
+      }
+
+      function editSummary(summary) {
+        currentSummaryId = summary._id;
+        document.getElementById("editTitle").value = summary.title;
+        document.getElementById("editSummary").value = summary.summary;
+        document.getElementById("editContent").value = summary.content;
+        document.getElementById("editThreatLevel").value = summary.threat_level;
+        document.getElementById("editKeyTerms").value =
+          summary.key_terms.join(", ");
+        document.getElementById("editCaseNumber").value =
+          summary.case_number || "";
+        document.getElementById("editResolved").checked = summary.resolved;
+        document.getElementById("editForm").style.display = "block";
+        document.getElementById("viewForm").style.display = "none";
+      }
+
+      function viewSummary(summary) {
+        document.getElementById("viewTitle").value = summary.title;
+        document.getElementById("viewSummary").value = summary.summary;
+        document.getElementById("viewContent").value = summary.content;
+        document.getElementById("viewThreatLevel").value = summary.threat_level;
+        document.getElementById("viewKeyTerms").value =
+          summary.key_terms.join(", ");
+        document.getElementById("viewCaseNumber").value =
+          summary.case_number || "";
+        document.getElementById("viewResolved").checked = summary.resolved;
+        document.getElementById("viewForm").style.display = "block";
+        document.getElementById("editForm").style.display = "none";
+      }
+
+      function closeView() {
+        document.getElementById("viewForm").style.display = "none";
+      }
+
+      async function saveSummary() {
+        const title = document.getElementById("editTitle").value;
+        const summary = document.getElementById("editSummary").value;
+        const threat_level = document.getElementById("editThreatLevel").value;
+        const key_terms = document
+          .getElementById("editKeyTerms")
+          .value.split(",")
+          .map((term) => term.trim());
+        const case_number =
+          document.getElementById("editCaseNumber").value || null;
+        const resolved = document.getElementById("editResolved").checked;
+
+        const response = await fetch(`/api/summaries/${currentSummaryId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title,
+            summary,
+            summary_length: summary.split(" ").length,
+            threat_level,
+            key_terms,
+            case_number: case_number ? parseInt(case_number) : null,
+            resolved,
+          }),
+        });
+        const result = await response.json();
+        alert(result.message);
+        document.getElementById("editForm").style.display = "none";
+        fetchSummariesByCase();
+        showMap(); // Refresh the map after saving the summary
+      }
+
+      function cancelEdit() {
+        document.getElementById("editForm").style.display = "none";
+      }
+
+      function toggleMap() {
+        const mapDiv = document.getElementById("map");
+        if (mapDiv.style.display === "block") {
+          mapDiv.style.display = "none";
+        } else {
+          showMap();
+        }
+      }
+
+      async function showMap() {
+        const caseNumber = document.getElementById("caseNumber").value;
+        if (!caseNumber) {
+          alert("Please enter a case number.");
+          return;
+        }
+
+        const mapDiv = document.getElementById("map");
+        mapDiv.style.display = "block";
+
+        if (!mapInitialized) {
+          map = L.map("map", {
+            maxBounds: [
+              [-90, -180],
+              [90, 180],
+            ],
+            maxBoundsViscosity: 1.0,
+            minZoom: 2, // Set minimum zoom level to prevent repeating continents
+          }).setView([20, 0], 3); // Adjusted initial zoom level
+
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+          }).addTo(map);
+
+          mapInitialized = true;
+        }
+
+        const response = await fetch(
+          `/api/summaries/locations?case_number=${caseNumber}`
+        );
+        const summaries = await response.json();
+
+        // Clear existing markers
+        map.eachLayer((layer) => {
+          if (layer instanceof L.CircleMarker) {
+            map.removeLayer(layer);
+          }
+        });
+
+        const locationSummaries = {};
+
+        summaries.forEach((summary) => {
+          const [lat, lon] = summary.location.split(",").map(Number);
+          const locationKey = `${lat},${lon}`;
+
+          if (!locationSummaries[locationKey]) {
+            locationSummaries[locationKey] = {
+              summaries: [],
+              threatCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+              highestThreatLevel: 1,
+            };
+          }
+
+          locationSummaries[locationKey].summaries.push(summary);
+          locationSummaries[locationKey].threatCounts[summary.threat_level]++;
+          locationSummaries[locationKey].highestThreatLevel = Math.max(
+            locationSummaries[locationKey].highestThreatLevel,
+            summary.threat_level
+          );
+        });
+
+        Object.keys(locationSummaries).forEach((locationKey) => {
+          const [lat, lon] = locationKey.split(",").map(Number);
+          const locationData = locationSummaries[locationKey];
+          const threatLevelColor = getThreatLevelColor(
+            locationData.highestThreatLevel
+          );
+
+          const popupContent = `
+            <b>Location:</b> ${locationKey}<br>
+            <b>Total Summaries:</b> ${locationData.summaries.length}<br>
+            <b>Threat Levels:</b><br>
+            1: ${locationData.threatCounts[1]}<br>
+            2: ${locationData.threatCounts[2]}<br>
+            3: ${locationData.threatCounts[3]}<br>
+            4: ${locationData.threatCounts[4]}<br>
+            5: ${locationData.threatCounts[5]}
+          `;
+
+          L.circleMarker([lat, lon], {
+            radius: 4,
+            color: threatLevelColor,
+            fillColor: threatLevelColor,
+            fillOpacity: 0.8,
+          })
+            .bindPopup(popupContent)
+            .addTo(map);
+        });
+      }
+
+      function getThreatLevelColor(level) {
+        switch (level) {
+          case 1:
+            return "blue";
+          case 2:
+            return "green";
+          case 3:
+            return "yellow";
+          case 4:
+            return "red";
+          case 5:
+            return "black";
+        }
+      }
+    </script>
+    <style>
+      textarea {
+        width: 100%;
+        height: 150px;
+      }
+
+      #editKeyTerms,
+      #viewTitle,
+      #viewKeyTerms {
+        width: 100%;
+      }
+
+      #map {
+        width: 100%;
+
+        height: 500px;
+
+        display: none;
+
+        margin-top: 20px;
+      }
+    </style>
   </head>
   <body>
-    <h1>Worktable</h1>
-    <nav>
-      <a href="/">Back to Home</a>
-    </nav>
-    <!-- Add your form or functionality for the worktable here -->
+    <div class="container">
+      <h1 class="my-4">Worktable</h1>
+      <nav>
+        <a href="/">Back to Home</a>
+      </nav>
+
+      <h2 class="my-4">Search Summaries by Case Number</h2>
+      <form onsubmit="event.preventDefault(); fetchSummariesByCase();">
+        <div class="form-group">
+          <label for="caseNumber">Case Number:</label>
+          <input type="number" id="caseNumber" class="form-control" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+
+      <h2 class="my-4">Summaries</h2>
+      <ul id="summariesList" class="list-group"></ul>
+
+      <button class="btn btn-secondary my-4" onclick="toggleMap()">
+        Toggle Map
+      </button>
+      <div id="map"></div>
+
+      <h2 class="my-4">Edit Summary</h2>
+      <form
+        id="editForm"
+        onsubmit="event.preventDefault(); saveSummary();"
+        style="display: none"
+      >
+        <div class="form-group">
+          <label for="editTitle">Title:</label>
+          <input type="text" id="editTitle" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label for="editThreatLevel">Threat Level:</label>
+          <input
+            type="text"
+            id="editThreatLevel"
+            class="form-control"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="editKeyTerms">Key Terms (comma-separated):</label>
+          <input type="text" id="editKeyTerms" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="editCaseNumber">Case Number:</label>
+          <input type="number" id="editCaseNumber" class="form-control" />
+        </div>
+        <div class="form-group form-check">
+          <input type="checkbox" id="editResolved" class="form-check-input" />
+          <label for="editResolved" class="form-check-label">Resolved</label>
+        </div>
+        <div class="form-group">
+          <label for="editSummary">Summary:</label>
+          <textarea id="editSummary" class="form-control" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="editContent">Content (read-only):</label>
+          <textarea id="editContent" class="form-control" readonly></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" onclick="cancelEdit()">
+          Cancel
+        </button>
+      </form>
+
+      <h2 class="my-4">View Summary</h2>
+      <form id="viewForm" style="display: none">
+        <div class="form-group">
+          <label for="viewTitle">Title:</label>
+          <input type="text" id="viewTitle" class="form-control" readonly />
+        </div>
+        <div class="form-group">
+          <label for="viewThreatLevel">Threat Level:</label>
+          <input
+            type="text"
+            id="viewThreatLevel"
+            class="form-control"
+            readonly
+          />
+        </div>
+        <div class="form-group">
+          <label for="viewKeyTerms">Key Terms (comma-separated):</label>
+          <input type="text" id="viewKeyTerms" class="form-control" readonly />
+        </div>
+        <div class="form-group">
+          <label for="viewCaseNumber">Case Number:</label>
+          <input
+            type="number"
+            id="viewCaseNumber"
+            class="form-control"
+            readonly
+          />
+        </div>
+        <div class="form-group form-check">
+          <input
+            type="checkbox"
+            id="viewResolved"
+            class="form-check-input"
+            disabled
+          />
+          <label for="viewResolved" class="form-check-label">Resolved</label>
+        </div>
+        <div class="form-group">
+          <label for="viewSummary">Summary:</label>
+          <textarea id="viewSummary" class="form-control" readonly></textarea>
+        </div>
+        <div class="form-group">
+          <label for="viewContent">Content (read-only):</label>
+          <textarea id="viewContent" class="form-control" readonly></textarea>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="closeView()">
+          Close
+        </button>
+      </form>
+    </div>
   </body>
 </html>
