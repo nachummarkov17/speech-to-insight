@@ -7,7 +7,8 @@ from flask import Flask, jsonify, render_template, request
 from flask_pymongo import PyMongo
 from werkzeug.utils import secure_filename
 
-from recording_to_text import transcribe_audio
+from speech_transcriber import transcribe_audio
+from summarizer import summarize_text
 
 load_dotenv()
 
@@ -52,7 +53,7 @@ def upload_audio():
 
     files = request.files.getlist("audioFiles")
     saved_files = []
-    transcriptions = []
+    summaries = []
 
     for file in files:
         if file.filename == "":
@@ -65,14 +66,40 @@ def upload_audio():
 
         # Transcribe the audio file
         transcription = transcribe_audio(file_path)
-        transcriptions.append({"filename": filename, "transcription": transcription})
+
+        # Summarize the transcribed text
+        summary_text = summarize_text(transcription)
+
+        # Extract summary details from the summary text
+        summary_lines = summary_text.split("\n")
+        title = summary_lines[0].strip("[]")
+        summary_content = summary_lines[1].strip("[]")
+        summary_length = int(summary_lines[3].split(": ")[1].split()[0])
+        threat_level = summary_lines[4].split(": ")[1].rstrip("]")
+        key_terms = summary_lines[5].strip("[]").split(", ")
+
+        # Create the summary document
+        summary_document = {
+            "title": title,
+            "content": transcription,
+            "contentLength": len(transcription.split()),
+            "summary": summary_content,
+            "summaryLength": summary_length,
+            "key_terms": key_terms,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "threat_level": threat_level,
+        }
+        summaries.append(summary_document)
+
+        # Insert the summary document into the database
+        summary_id = mongo.db.summaries.insert_one(summary_document).inserted_id
+        summary_document["_id"] = str(summary_id)
 
     return (
         jsonify(
             {
-                "message": "Files successfully uploaded",
                 "files": saved_files,
-                "transcriptions": transcriptions,
+                "summaries": summaries,
             }
         ),
         200,
@@ -100,7 +127,8 @@ def get_summaries():
     result = []
     for summary in summaries:
         summary["_id"] = str(summary["_id"])
-        summary["date"] = summary["date"].strftime("%Y-%m-%d")
+        # Ensure the date is treated as a string
+        summary["date"] = str(summary["date"])
         result.append(summary)
     return jsonify(result), 200
 
@@ -135,7 +163,7 @@ def search_summaries_by_date():
     result = []
     for summary in summaries:
         summary["_id"] = str(summary["_id"])
-        summary["date"] = summary["date"].strftime("%Y-%m-%d")
+        summary["date"] = str(summary["date"])
         result.append(summary)
     return jsonify(result), 200
 
@@ -154,7 +182,28 @@ def search_summaries_by_key_terms():
     result = []
     for summary in summaries:
         summary["_id"] = str(summary["_id"])
-        summary["date"] = summary["date"].strftime("%Y-%m-%d")
+        summary["date"] = str(summary["date"])
+        result.append(summary)
+    return jsonify(result), 200
+
+
+@app.route("/api/summaries/date_range", methods=["GET"])
+def get_summaries_by_date_range():
+    start_date_str = request.args.get("start")
+    end_date_str = request.args.get("end")
+
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+    query = {"date": {"$gte": start_date, "$lte": end_date}}
+    summaries = mongo.db.summaries.find(query)
+    result = []
+    for summary in summaries:
+        summary["_id"] = str(summary["_id"])
+        summary["date"] = str(summary["date"])
         result.append(summary)
     return jsonify(result), 200
 
