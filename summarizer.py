@@ -2,6 +2,7 @@ import google.generativeai as genai
 
 # Configure the API key (ensure the GEMINI_API_KEY environment variable is set)
 genai.configure(api_key="AIzaSyCwsWhj8h8aVExmmhFSSbxmpSXRkIPnG1I")
+# genai.configure(api_key="AIzaSyB-TsVquRC_v9PdWhq4ngZcAA9_Ttzle1o")
 
 # Define the generation configuration
 generation_config = {

@@ -9,6 +9,8 @@
       rel="stylesheet"
     />
     <script>
+      let searchResults = [];
+
       async function deleteSummary() {
         const id = document.getElementById("deleteId").value;
         const response = await fetch(`/api/summaries/${id}`, {
@@ -34,6 +36,7 @@
       async function searchSummaries() {
         const title = document.getElementById("searchTitle").value;
         const content = document.getElementById("searchContent").value;
+        const summary = document.getElementById("searchSummary").value;
         const date = document.getElementById("searchDate").value;
         const dateType = document.getElementById("searchDateType").value;
         const key_terms = document
@@ -53,6 +56,7 @@
         const query = new URLSearchParams();
         if (title) query.append("title", title);
         if (content) query.append("content", content);
+        if (summary) query.append("summary", summary);
         if (date) {
           query.append("date", date);
           query.append("dateType", dateType);
@@ -71,6 +75,8 @@
         );
         const result = await response.json();
 
+        searchResults = result; // Store the search results
+
         const summariesList = document.getElementById("summariesList");
         summariesList.innerHTML = "";
         result.forEach((summary) => {
@@ -78,10 +84,14 @@
           listItem.className =
             "list-group-item d-flex justify-content-between align-items-center";
           listItem.textContent = `${summary.title} (${summary.date})`;
+          listItem.onclick = () => showSummaryDetails(summary);
           const addButton = document.createElement("button");
           addButton.textContent = "Add to Case";
           addButton.className = "btn btn-sm btn-primary ml-2";
-          addButton.onclick = () => addToCase(summary._id);
+          addButton.onclick = (event) => {
+            event.stopPropagation();
+            addToCase(summary._id);
+          };
           listItem.appendChild(addButton);
           summariesList.appendChild(listItem);
         });
@@ -89,6 +99,18 @@
         if (clearFields) {
           document.getElementById("searchSummariesForm").reset();
         }
+      }
+
+      function showSummaryDetails(summary) {
+        document.getElementById("summaryDetailsTitle").innerText =
+          summary.title;
+        document.getElementById("summaryDetailsSummary").innerText =
+          summary.summary;
+        document.getElementById("summaryDetailsKeyTerms").innerText =
+          summary.key_terms.join(", ");
+        document.getElementById("summaryDetailsThreatLevel").innerText =
+          summary.threat_level;
+        document.getElementById("summaryDetails").style.display = "block";
       }
 
       async function addToCase(summaryId) {
@@ -119,12 +141,17 @@
           return;
         }
 
+        const summaryIds = searchResults.map((summary) => summary._id);
+
         const response = await fetch(`/api/summaries/case_number`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ case_number: caseNumber }),
+          body: JSON.stringify({
+            case_number: caseNumber,
+            summary_ids: summaryIds,
+          }),
         });
         const result = await response.json();
         alert(result.message);
@@ -138,7 +165,7 @@
         <a class="btn btn-secondary" href="/">Back to Home</a>
       </nav>
 
-      <h2 class="mt-4">Delete Summary</h2>
+      <!-- <h2 class="mt-4">Delete Summary</h2>
       <form
         id="deleteSummaryForm"
         onsubmit="event.preventDefault(); deleteSummary();"
@@ -154,7 +181,7 @@
       <h2 class="mt-4">Delete All Summaries</h2>
       <button class="btn btn-danger mt-3" onclick="deleteAllSummaries()">
         Delete All Summaries
-      </button>
+      </button> -->
 
       <h2 class="mt-4">Search Summaries</h2>
       <form
@@ -169,6 +196,10 @@
         <div class="form-group">
           <label for="searchContent">Content:</label>
           <input type="text" id="searchContent" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="searchSummary">Summary:</label>
+          <input type="text" id="searchSummary" class="form-control" />
         </div>
         <div class="form-group">
           <label for="searchDate">Date (YYYY-MM-DD):</label>
@@ -232,6 +263,21 @@
 
       <h2 class="mt-4">Summaries</h2>
       <ul id="summariesList" class="list-group mt-3"></ul>
+
+      <h2 class="mt-4">Summary Details</h2>
+      <div id="summaryDetails" style="display: none">
+        <p><strong>Title:</strong> <span id="summaryDetailsTitle"></span></p>
+        <p>
+          <strong>Summary:</strong> <span id="summaryDetailsSummary"></span>
+        </p>
+        <p>
+          <strong>Key Terms:</strong> <span id="summaryDetailsKeyTerms"></span>
+        </p>
+        <p>
+          <strong>Threat Level:</strong>
+          <span id="summaryDetailsThreatLevel"></span>
+        </p>
+      </div>
     </div>
   </body>
 </html>

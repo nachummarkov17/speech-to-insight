@@ -177,6 +177,7 @@ def search_summaries():
     query = {}
     title = request.args.get("title")
     content = request.args.get("content")
+    summary = request.args.get("summary")
     date = request.args.get("date")
     date_type = request.args.get("dateType")
     key_terms = request.args.getlist("key_terms")
@@ -193,14 +194,15 @@ def search_summaries():
         query["title"] = {"$regex": title, "$options": "i"}
     if content:
         query["content"] = {"$regex": content, "$options": "i"}
+    if summary:
+        query["summary"] = {"$regex": summary, "$options": "i"}
     if date:
-        date_obj = datetime.strptime(date, "%Y-%m-%d")
         if date_type == "before":
-            query["date"] = {"$lt": date_obj}
+            query["date"] = {"$lt": date}
         elif date_type == "after":
-            query["date"] = {"$gt": date_obj}
+            query["date"] = {"$gt": date}
         else:
-            query["date"] = date_obj
+            query["date"] = date
     if key_terms:
         regex_terms = [
             {"key_terms": {"$regex": term, "$options": "i"}} for term in key_terms
@@ -275,11 +277,13 @@ def update_case_number(id):
 @app.route("/api/summaries/case_number", methods=["PATCH"])
 def update_case_number_all():
     case_number = request.json.get("case_number")
-    if case_number is None:
-        return jsonify({"message": "case_number is required"}), 400
+    summary_ids = request.json.get("summary_ids")
+    if case_number is None or not summary_ids:
+        return jsonify({"message": "case_number and summary_ids are required"}), 400
 
+    object_ids = [ObjectId(id) for id in summary_ids]
     result = mongo.db.summaries.update_many(
-        {}, {"$set": {"case_number": int(case_number)}}
+        {"_id": {"$in": object_ids}}, {"$set": {"case_number": int(case_number)}}
     )
     return jsonify({"message": f"{result.modified_count} summaries updated"}), 200
 

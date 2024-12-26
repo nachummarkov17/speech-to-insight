@@ -129,7 +129,12 @@
         alert(result.message);
         document.getElementById("editForm").style.display = "none";
         fetchSummariesByCase();
-        showMap(); // Refresh the map after saving the summary
+
+        // Update the map only if it is already open
+        const mapDiv = document.getElementById("map");
+        if (mapDiv.style.display === "block") {
+          showMap();
+        }
       }
 
       function cancelEdit() {
